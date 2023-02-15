@@ -1,0 +1,78 @@
+name: Deliverables
+
+parameters:
+  - name: serviceConnection
+    type: string
+    default: 'pmc-dev-config-kv-sc'
+  - name: storageAccountFolder
+    default: 'devkit-connector'
+    type: string
+  - name: isTemplateOneConnector
+    type: string
+    default: true
+  - name: sendSlackMessage
+    default: false
+    type: boolean
+  - name: slackChannel
+    default: ''
+    type: string
+
+resources:
+  repositories:
+    - repository: deliverablesCheck
+      endpoint: UiPath
+      type: github
+      name: UiPath/ProcessMining-framework-resources
+      ref: refs/tags/deliverables_check.0.4.0
+
+    - repository: uploadToStorage
+      endpoint: UiPath
+      type: GitHub
+      name: UiPath/ProcessMining-framework-resources
+      ref: refs/tags/publish_artifact_to_storage.0.1.0
+
+    - repository: toggleKeyVaultRepo
+      endpoint: UiPath
+      type: github
+      name: UiPath/AzurePipelinesTemplates
+      ref: refs/tags/uipath.kv-access.1.2.1
+
+    - repository: slackmessages
+      type: GitHub
+      endpoint: UiPath
+      name: UiPath/AzurePipelinesTemplates
+      ref: refs/tags/uipath.post-slack-message.1.1.2
+
+# The pipeline runs on PRs to main or validation, not on pushes to other branches.
+trigger:
+  none
+
+pr:
+  branches:
+    include:
+      - main
+      - validation
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: deliverables_complete
+    steps:
+      - template: ./.pipelines/templates/deliverables_check.job.yml@deliverablesCheck
+        parameters:
+          isTemplateOneConnector: ${{ parameters.isTemplateOneConnector }}
+          artifactName: 'deliverables_complete'
+
+  - job: publish_deliverables_logs_to_storage
+    dependsOn: deliverables_complete
+    condition: failed()
+    steps:
+      - template: ./.pipelines/templates/publish_artifact_to_storage.job.yml@uploadToStorage
+        parameters:
+          serviceConnection: ${{ parameters.serviceConnection }}
+          artifactName: 'deliverables_complete'
+          storageAccountFolder: ${{ parameters.storageAccountFolder }}
+          sendSlackMessage: ${{ parameters.sendSlackMessage }}
+          slackChannel: ${{ parameters.slackChannel }}
+

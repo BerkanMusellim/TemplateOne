@@ -1,0 +1,96 @@
+name: Transformations
+
+parameters:
+  - name: serviceConnection
+    type: string
+    default: 'pmc-dev-config-kv-sc'
+  - name: storageAccountFolder
+    default: 'devkit-connector'
+    type: string
+  - name: sendSlackMessage
+    default: false
+    type: boolean
+  - name: slackChannel
+    default: ''
+    type: string
+
+resources:
+  repositories:
+    - repository: dbtTransformations
+      endpoint: UiPath
+      type: github
+      name: UiPath/ProcessMining-framework-resources
+      ref: refs/tags/dbt_transformations.0.6.7
+
+    - repository: sqlfluffLinter
+      endpoint: UiPath
+      type: github
+      name: UiPath/ProcessMining-framework-resources
+      ref: refs/tags/sqlfluff_lint.0.2.2
+
+    - repository: uploadToStorage
+      endpoint: UiPath
+      type: GitHub
+      name: UiPath/ProcessMining-framework-resources
+      ref: refs/tags/publish_artifact_to_storage.0.1.0
+
+    - repository: toggleKeyVaultRepo
+      endpoint: UiPath
+      type: github
+      name: UiPath/AzurePipelinesTemplates
+      ref: refs/tags/uipath.kv-access.1.2.1
+
+    - repository: slackmessages
+      type: GitHub
+      endpoint: UiPath
+      name: UiPath/AzurePipelinesTemplates
+      ref: refs/tags/uipath.post-slack-message.1.1.2
+
+# By leaving the trigger undefined, the pipeline starts on each push to any branch.
+# Therefore it is not necessary to also start it via a PR.
+pr:
+  none
+
+pool:
+  vmImage: ubuntu-20.04
+
+jobs:
+  - job: dbt_transformations
+    steps:
+      - template: ./.pipelines/templates/dbt_transformations.job.yml@dbtTransformations
+        parameters:
+          serviceConnection: ${{ parameters.serviceConnection }}
+          artifactName: 'transformations_dbt'
+          
+
+  - job: publish_transformation_logs_to_storage
+    dependsOn: dbt_transformations
+    condition: failed()
+    steps:
+      - template: ./.pipelines/templates/publish_artifact_to_storage.job.yml@uploadToStorage
+        parameters:
+          serviceConnection: ${{ parameters.serviceConnection }}
+          artifactName: 'transformations_dbt'
+          storageAccountFolder: ${{ parameters.storageAccountFolder }}
+          sendSlackMessage: ${{ parameters.sendSlackMessage }}
+          slackChannel: ${{ parameters.slackChannel }}
+
+  - job: lint_sql
+    steps:
+      - template: ./.pipelines/templates/sqlfluff_lint.job.yml@sqlfluffLinter
+        parameters:
+          serviceConnection: ${{ parameters.serviceConnection }}
+          artifactName: 'transformations_lint_sql'
+
+  - job: publish_lint_sql_logs_to_storage
+    dependsOn: lint_sql
+    condition: failed()
+    steps:
+      - template: ./.pipelines/templates/publish_artifact_to_storage.job.yml@uploadToStorage
+        parameters:
+          serviceConnection: ${{ parameters.serviceConnection }}
+          artifactName: 'transformations_lint_sql'
+          storageAccountFolder: ${{ parameters.storageAccountFolder }}
+          sendSlackMessage: ${{ parameters.sendSlackMessage }}
+          slackChannel: ${{ parameters.slackChannel }}
+
