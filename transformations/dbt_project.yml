@@ -1,0 +1,41 @@
+# Name and version of this dbt project.
+name: 'devkit_connector'
+version: '0.4.0'
+require-dbt-version: [">=1.0.0", "<2.0.0"]
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'devkit_connector'
+
+vars:
+  # Define schema_sources if your source tables are in a different schema. Example: schema_sources: "my_schema"
+  date_format: "{{ 'YYYY-MM-DD' if target.type == 'snowflake' else 23 }}"
+  time_format: "{{ 'hh24:mi:ss.ff3' if target.type == 'snowflake' else 14 }}"
+  datetime_format: "{{ 'YYYY-MM-DD hh24:mi:ss.ff3' if target.type == 'snowflake' else 21 }}"
+
+# These configurations specify where dbt should look for different types of files.
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+
+# Directory which will store compiled SQL files and will be removed by 'dbt clean'.
+target-path: "target"
+clean-targets:
+  - "target"
+
+# Input models are materialized as view and the rest as table.
+models:
+  devkit_connector:
+    materialized: table
+    1_input:
+      materialized: view
+
+# Quoting is enabled for databases, schemas, and identifiers.
+quoting:
+  database: true
+  schema: true
+  identifier: true
+
+# Quoting is enabled for columns in the seeds files.
+seeds:
+  quote_columns: true 

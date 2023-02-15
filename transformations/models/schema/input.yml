@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: PO_input
+    columns:
+      - name: '"ID"'
+        tests:
+          - not_null
+          - unique
+
+  - name: INV_input
+    columns:
+      - name: '"ID"'
+        tests:
+          - not_null
+          - unique
